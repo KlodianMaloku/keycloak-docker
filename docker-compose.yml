@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - 8800:8800
+      - 8843:443
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  postgres:
+      image: postgres:13.7
+      volumes:
+        - keycloak-db-data:/var/lib/postgresql/data
+      environment:
+        POSTGRES_DB: keycloak
+        POSTGRES_USER: keycloak
+        POSTGRES_PASSWORD: keycloak
+
+  keycloak:
+      image: quay.io/keycloak/keycloak:20.0.3
+      volumes:
+        - ./imports:/opt/keycloak_config/imports
+        - ./certs:/opt/keycloak_config/certs
+      environment:
+        - DB_VENDOR=POSTGRES
+        - DB_ADDR=postgres
+        - DB_DATABASE=keycloak
+        - DB_USER=keycloak
+        - DB_SCHEMA=public
+        - DB_PASSWORD=keycloak
+        - KEYCLOAK_ADMIN=admin
+        - KEYCLOAK_ADMIN_PASSWORD=admin
+        - KEYCLOAK_IMPORT=/opt/keycloak_config/imports/ContactCenter-realm.json
+        - KC_PROXY=edge
+        - KC_HOSTNAME_STRICT=false
+      depends_on:
+        - postgres
+      ports:
+        - 8080:8080
+      command:
+        - "-Djboss.socket.binding.port-offset=1000"
+        - "-Dkeycloak.migration.action=import"
+        - "-Dkeycloak.migration.provider=singleFile"
+        - "-Dkeycloak.migration.usersExportStrategy=INCLUDE_PASSWORDS"
+        - "-Dkeycloak.migration.file=/opt/keycloak_config/imports/ContactCenter-realm.json"
+        - "start-dev"
+        
+volumes:
+  keycloak-db-data:
+      driver: local
